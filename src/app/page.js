@@ -65,6 +65,7 @@ export default function MeetingScheduler() {
           {hosts?.map((host) => (
             <li key={host.id} className="mb-1">
               {host.name}
+              <button className="text-xl ml-2 text-red-500" onClick={() => db.hosts.delete(host.id)}>🗑</button>
             </li>
           ))}
         </ul>
@@ -121,7 +122,7 @@ export default function MeetingScheduler() {
           <ul className="space-y-2">
             {meetings?.map((meetings) => (
               <li key={meetings.id} className="border p-2 rounded">
-                <p><strong>Host:</strong> {meetings.host}</p>
+                <p><strong>Host:</strong> {meetings.host} | <button className="text-xl ml-2 text-red-500" onClick={() => db.meetings.delete(meetings.id)}>🗑</button>                </p>
                 <p><strong>Date:</strong> {format(new Date(`${meetings.date}T${meetings.time}`), "PPPP")}</p>
                 <p><strong>Time:</strong> {meetings.time}</p>
                 <p><strong>Description:</strong> {meetings.description}</p>
