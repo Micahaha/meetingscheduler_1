@@ -1,103 +1,135 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { Dexie } from "dexie";
+import { useLiveQuery } from "dexie-react-hooks"; 
+import { format } from "date-fns";
+
+
+// db initialization
+export const db = new Dexie("MeetingSchedulerDB");
+db.version(1).stores({
+  meetings: "++id, host, date, time, description",
+  hosts: "++id, name"
+});
+
+
+
+export default function MeetingScheduler() {
+  const [hostName, setHostName] = useState("");
+  const [form, setForm] = useState({ host: "", date: "", time: "", description: "" });
+  const hosts = useLiveQuery(() => db.hosts.toArray());
+  const meetings = useLiveQuery(() => db.meetings.toArray());
+
+
+  const addHost = () => {
+    if (hostName && !hosts.includes(hostName)) {
+      db.hosts.add({ name: hostName });
+    }
+  };
+
+  const scheduleMeeting = () => {
+    if (form.host && form.date && form.time && form.description) {
+      db.meetings.add({
+        host: form.host,
+        date: form.date,
+        time: form.time,
+        description: form.description,
+      });
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl text-center font-bold mb-4">Meeting Scheduler</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div className="bg-white shadow rounded p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-2">Add Host</h2>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            className="border p-2 rounded w-full"
+            placeholder="Host Name"
+            value={hostName}
+            onChange={(e) => setHostName(e.target.value)}
+          />
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+            onClick={addHost}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Add
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <h3 className="font-medium">Existing Hosts:</h3>
+        <ul className="list-disc pl-5">
+          {hosts?.map((host) => (
+            <li key={host.id} className="mb-1">
+              {host.name}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="bg-white shadow rounded p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-2">Schedule a Meeting</h2>
+        <div className="space-y-2">
+          <select
+            className="w-full border rounded p-2"
+            value={form.host}
+            onChange={(e) => setForm({...form, host: e.target.value })}
+          >
+            <option value="">Select Host</option>
+            {hosts?.map((host) => (
+              <option key={host.id} value={host.name}>
+                {host.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            className="border p-2 rounded w-full"
+            value={form.date}
+            onChange={(e) => setForm({...form, date: e.target.value })}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <input
+            type="time"
+            className="border p-2 rounded w-full"
+            value={form.time}
+            onChange={(e) => setForm({...form, time: e.target.value })}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          <input
+            type="text"
+            placeholder="Description"
+            className="border p-2 rounded w-full"
+            value={form.description}
+            onChange={(e) => setForm({...form, description: e.target.value })}
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded"
+            onClick={scheduleMeeting}
+          >
+            Schedule
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white shadow rounded p-4">
+        <h2 className="text-xl font-semibold mb-2">Scheduled Meetings</h2>
+        {meetings?.length === 0 ? (
+          <p>No meetings scheduled.</p>
+        ) : (
+          <ul className="space-y-2">
+            {meetings?.map((meetings) => (
+              <li key={meetings.id} className="border p-2 rounded">
+                <p><strong>Host:</strong> {meetings.host}</p>
+                <p><strong>Date:</strong> {format(new Date(`${meetings.date}T${meetings.time}`), "PPPP")}</p>
+                <p><strong>Time:</strong> {meetings.time}</p>
+                <p><strong>Description:</strong> {meetings.description}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
