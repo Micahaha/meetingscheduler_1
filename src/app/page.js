@@ -9,9 +9,9 @@ import { format } from "date-fns";
 // db initialization
 export const db = new Dexie("MeetingSchedulerDB");
 db.version(1).stores({
-  meetings: "++id, host, participant, date, time, description",
+  meetings: "++id, hostId, participant, date, time, description",
   hosts: "++id, name",
-  participant: "++id, name, email"
+  participants: "++id, name, email"
 });
 
 
@@ -22,7 +22,7 @@ export default function MeetingScheduler() {
   const [participant, setParticipant] = useState({ name: "", email: "" });
   const hosts = useLiveQuery(() => db.hosts.toArray());
   const meetings = useLiveQuery(() => db.meetings.toArray());
-  const participants = useLiveQuery(() => db.participant.toArray());
+  const participants = useLiveQuery(() => db.participants.toArray());
 
 
   const addHost = () => {
@@ -33,7 +33,7 @@ export default function MeetingScheduler() {
 
   const addParticipant = () => { 
      if (participant.name && participant.email) {
-      db.participant.add({ name: participant.name, email: participant.email });
+      db.participants.add({ name: participant.name, email: participant.email });
     }
 
   }
@@ -41,13 +41,34 @@ export default function MeetingScheduler() {
   const scheduleMeeting = () => {
     if (form.host && form.date && form.time && form.description) {
       db.meetings.add({
-        host: form.host,
+        hostId: parseInt(form.host), 
         date: form.date,
         time: form.time,
         description: form.description,
       });
     }
   };
+
+
+  async function deleteHostChildren(id) {
+    await db.transaction("rw", db.hosts, db.meetings, db.participant, async () => {
+      const meetingsToDelete = await db.meetings.where("hostId").equals(id).toArray();
+      for (const meeting of meetingsToDelete) {
+        await db.meetings.delete(meeting.id);
+      }
+    
+      const participantsToDelete = await db.participant
+        .where("meetingId")
+        .equals(id)
+        .toArray();
+    
+      for (const p of participantsToDelete) {
+        await db.participants.delete(p.id);
+      }
+    
+      await db.hosts.delete(id);
+    });
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -70,16 +91,51 @@ export default function MeetingScheduler() {
             Add
           </button>
         </div>
+       
         <h3 className="font-medium">Existing Hosts:</h3>
         <ul className="list-disc pl-5">
           {hosts?.map((host) => (
             <li key={host.id} className="mb-1">
               {host.name}
-              <button className="text-xl ml-2 text-red-500" onClick={() => db.hosts.delete(host.id)}>🗑</button>
+              <button className="text-xl ml-2 text-red-500" onClick={() => deleteHostChildren(host.id)}>🗑</button>
             </li>
           ))}
         </ul>
       </div>
+      <div className="bg-white shadow rounded p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-2">Add Participant</h2>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            className="border p-2 rounded w-full"
+            placeholder="Participant Name"
+            value={participant.name}
+            onChange={(e) => setParticipant({...participant, name: e.target.value })}
+          />
+           <input
+            type="text"
+            className="border p-2 rounded w-full"
+            placeholder="Participant email"
+            value={participant.email}
+            onChange={(e) => setParticipant({...participant, email: e.target.value })}
+          />
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+            onClick={addParticipant}
+          >
+            Add
+          </button>
+          </div>
+          <h3 className="font-medium">Existing Participants:</h3>
+        <ul className="list-disc pl-5">
+          {participants?.map((participant) => (
+            <li key={participant.id} className="mb-1">
+              {participant.name}
+              <button className="text-xl ml-2 text-red-500" onClick={() => db.participant.delete(participant.id)}>🗑</button>
+            </li>
+          ))}
+        </ul>
+        </div>
 
       <div className="bg-white shadow rounded p-4 mb-6">
         <h2 className="text-xl font-semibold mb-2">Schedule a Meeting</h2>
@@ -91,7 +147,7 @@ export default function MeetingScheduler() {
           >
             <option value="">Select Host</option>
             {hosts?.map((host) => (
-              <option key={host.id} value={host.name}>
+              <option key={host.id} value={host.id}>
                 {host.name}
               </option>
             ))}
@@ -132,7 +188,7 @@ export default function MeetingScheduler() {
           <ul className="space-y-2">
             {meetings?.map((meetings) => (
               <li key={meetings.id} className="border p-2 rounded">
-                <p><strong>Host:</strong> {meetings.host} | <button className="text-xl ml-2 text-red-500" onClick={() => db.meetings.delete(meetings.id)}>🗑</button>                </p>
+                <p><strong>Host:</strong> {hosts?.find(h => h.id === meetings.hostId)?.name || "Unknown Host"} | <button className="text-xl ml-2 text-red-500" onClick={() => db.meetings.delete(meetings.id)}>🗑</button>                </p>
                 <p><strong>Date:</strong> {format(new Date(`${meetings.date}T${meetings.time}`), "PPPP")}</p>
                 <p><strong>Time:</strong> {meetings.time}</p>
                 <p><strong>Description:</strong> {meetings.description}</p>
