@@ -9,8 +9,9 @@ import { format } from "date-fns";
 // db initialization
 export const db = new Dexie("MeetingSchedulerDB");
 db.version(1).stores({
-  meetings: "++id, host, date, time, description",
-  hosts: "++id, name"
+  meetings: "++id, host, participant, date, time, description",
+  hosts: "++id, name",
+  participant: "++id, name, email"
 });
 
 
@@ -18,8 +19,10 @@ db.version(1).stores({
 export default function MeetingScheduler() {
   const [hostName, setHostName] = useState("");
   const [form, setForm] = useState({ host: "", date: "", time: "", description: "" });
+  const [participant, setParticipant] = useState({ name: "", email: "" });
   const hosts = useLiveQuery(() => db.hosts.toArray());
   const meetings = useLiveQuery(() => db.meetings.toArray());
+  const participants = useLiveQuery(() => db.participant.toArray());
 
 
   const addHost = () => {
@@ -27,6 +30,13 @@ export default function MeetingScheduler() {
       db.hosts.add({ name: hostName });
     }
   };
+
+  const addParticipant = () => { 
+     if (participant.name && participant.email) {
+      db.participant.add({ name: participant.name, email: participant.email });
+    }
+
+  }
 
   const scheduleMeeting = () => {
     if (form.host && form.date && form.time && form.description) {
